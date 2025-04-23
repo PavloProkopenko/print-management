@@ -16,7 +16,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom';
 
-export default function Login() {
+export default function Registration() {
     const {
         register,
         handleSubmit,
@@ -34,7 +34,7 @@ export default function Login() {
                 <Flex p={8} flex={1} align={'center'} justify={'center'} >
                     <Container bg='white' p={8} borderRadius={'lg'} shadow={'xl'}>
                         <Stack spacing={4} w={'full'} >
-                            <Heading fontSize={'2xl'}>Login to your account</Heading>
+                            <Heading fontSize={'2xl'}>Registration</Heading>
                             <FormControl id="email">
                                 <FormLabel>Email address</FormLabel>
                                 <Input type="email" {...register('email', { required: 'Email is required' })} />
@@ -54,18 +54,12 @@ export default function Login() {
                                 )}
                             </FormControl>
                             <Stack spacing={6}>
-                                <Stack
-                                    direction={{ base: 'column', sm: 'row' }}
-                                    align={'start'}
-                                    justify={'space-between'}>
-                                    <Checkbox {...register('remember')}>Remember me</Checkbox>
-                                </Stack>
                                 <Button type='submit' colorScheme={'blue'} variant={'solid'}>
-                                    Login
+                                    Sign in
                                 </Button>
                                 {/* <Link href={navigate('/register')}>
                                     <Text>
-                                        Don't have account yet? Create it!
+                                        Come back to login page
                                     </Text>
                                 </Link> */}
                             </Stack>
