@@ -5,6 +5,7 @@ const API = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true
 })
 
 // Додаємо токен до кожного запиту (якщо є)

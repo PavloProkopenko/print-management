@@ -1,7 +1,8 @@
+import API from '@/api/axios';
+import { RoutePath } from '@/resources/enums';
 import { LoginFormInput } from '@/resources/types'
 import {
     Button,
-    Checkbox,
     Flex,
     Text,
     FormControl,
@@ -24,9 +25,20 @@ export default function Registration() {
     } = useForm<LoginFormInput>();
     const navigate = useNavigate();
 
-    const onSubmit = (data: LoginFormInput) => {
-        console.log('Form data: ', data)
-        // TODO: Add backend
+    const onSubmit = async (data: LoginFormInput) => {
+        try {
+            const res = await API.post(RoutePath.Registration, data);
+            const { token, user } = res.data;
+
+            localStorage.setItem('token', token)
+            console.log('User registered:', user)
+
+            navigate(RoutePath.Dashboard)
+        } catch (error: any) {
+            console.error(error)
+            alert(error.response?.data?.message || 'Registration failed')
+        }
+
     }
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -57,11 +69,11 @@ export default function Registration() {
                                 <Button type='submit' colorScheme={'blue'} variant={'solid'}>
                                     Sign in
                                 </Button>
-                                {/* <Link href={navigate('/register')}>
+                                <Link onClick={() => navigate(RoutePath.Login)}>
                                     <Text>
                                         Come back to login page
                                     </Text>
-                                </Link> */}
+                                </Link>
                             </Stack>
                         </Stack>
                     </Container>

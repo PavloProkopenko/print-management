@@ -11,7 +11,7 @@ import Registration from './pages/Registration'
 
 const router = createBrowserRouter([
   {
-    path: '/',
+    path: '/dashboard',
     element: (
       <PrivateRoute>
         <Dashboard />

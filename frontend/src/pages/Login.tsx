@@ -15,6 +15,8 @@ import {
 } from '@chakra-ui/react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom';
+import API from '@/api/axios';
+import { RoutePath } from '@/resources/enums';
 
 export default function Login() {
     const {
@@ -24,9 +26,19 @@ export default function Login() {
     } = useForm<LoginFormInput>();
     const navigate = useNavigate();
 
-    const onSubmit = (data: LoginFormInput) => {
-        console.log('Form data: ', data)
-        // TODO: Add backend
+    const onSubmit = async (data: LoginFormInput) => {
+        try {
+            const res = await API.post(RoutePath.Login, data);
+            const { token, user } = res.data;
+
+            localStorage.setItem('token', token)
+            console.log('User logged in:', user)
+
+            navigate(RoutePath.Dashboard)
+        } catch (error: any) {
+            console.log(error);
+            alert(error.response?.data?.message || "Login failed")
+        }
     }
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -63,11 +75,12 @@ export default function Login() {
                                 <Button type='submit' colorScheme={'blue'} variant={'solid'}>
                                     Login
                                 </Button>
-                                {/* <Link href={navigate('/register')}>
+                                <Link onClick={() => navigate('/registration')}>
                                     <Text>
                                         Don't have account yet? Create it!
                                     </Text>
-                                </Link> */}
+                                </Link>
+
                             </Stack>
                         </Stack>
                     </Container>

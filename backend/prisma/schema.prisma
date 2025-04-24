@@ -8,8 +8,8 @@ datasource db {
 }
 
 model Users {
-  id       Int     @id @default(autoincrement())
-  email    String  @unique
+  id       Int    @id(map: "User_pkey") @default(autoincrement())
+  email    String @unique(map: "User_email_key")
   password String
-  role     String  @default("user") // або 'admin'
+  role     String @default("user")
 }
