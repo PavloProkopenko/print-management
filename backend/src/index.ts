@@ -5,6 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import userRouter from './routes/user.routes';
 import printerRouter from './routes/printer.routes';
+import path from 'path';
 
 dotenv.config();
 
@@ -20,6 +21,12 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 8080;
 
+// Створюємо директорію для завантажених файлів
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!require('fs').existsSync(uploadsDir)) {
+  require('fs').mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Додаємо логування для відстеження запитів
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
@@ -30,23 +37,21 @@ app.use((req, res, next) => {
 // Налаштування CORS
 app.use(cors({
   origin: 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization'
-  ]
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
-// Парсинг JSON
+// Парсинг JSON та URL-encoded даних
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Обслуговування статичних файлів
+app.use('/uploads', express.static(uploadsDir));
 
 // Роути
-app.use('/api/auth', userRouter);
-app.use('/api/printers', printerRouter);
+app.use('/api', userRouter);
+app.use('/api', printerRouter);
 
 // Тестовий роут
 app.get('/test', (req, res) => {

@@ -12,48 +12,61 @@ import {
     Image,
     Container,
     Link,
+    useToast,
 } from '@chakra-ui/react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom';
-import { RoutePath } from '@/resources/enums';
-import { loginRequest } from '@/api/auth';
+import { AdminRoutePath, RoutePath } from '@/resources/enums';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Login() {
     const {
         register,
         handleSubmit,
-        formState: { errors },
+        formState: { errors, isSubmitting },
     } = useForm<LoginFormInput>();
     const navigate = useNavigate();
+    const { login } = useAuth();
+    const toast = useToast();
 
     const onSubmit = async (data: LoginFormInput) => {
         try {
-            const { token, user } = await loginRequest(data.email, data.password);
-
-            localStorage.setItem('token', token)
-            console.log('User logged in:', user)
-
-            if (user.role === 'ADMIN') {
-                navigate(RoutePath.AdminDashboard)
+            await login(data.email, data.password);
+            
+            if (data.remember) {
+                localStorage.setItem('remember', 'true');
             } else {
-                navigate(RoutePath.Dashboard)
+                localStorage.removeItem('remember');
             }
 
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            if (user.role === 'ADMIN') {
+                navigate(AdminRoutePath.Dashboard);
+            } else {
+                navigate(RoutePath.Dashboard);
+            }
         } catch (error: any) {
-            console.log(error);
-            alert(error.response?.data?.message || "Login failed")
+            console.error('Login error:', error);
+            toast({
+                title: 'Помилка входу',
+                description: error.response?.data?.message || 'Невірний email або пароль',
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
         }
     }
+
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
             <Stack minH={'100vh'} direction={{ base: 'column', md: 'row' }}>
                 <Flex p={8} flex={1} align={'center'} justify={'center'} >
                     <Container bg='white' p={8} borderRadius={'lg'} shadow={'xl'}>
                         <Stack spacing={4} w={'full'} >
-                            <Heading fontSize={'2xl'}>Login to your account</Heading>
+                            <Heading fontSize={'2xl'}>Вхід в систему</Heading>
                             <FormControl id="email">
-                                <FormLabel>Email address</FormLabel>
-                                <Input type="email" {...register('email', { required: 'Email is required' })} />
+                                <FormLabel>Email</FormLabel>
+                                <Input type="email" {...register('email', { required: 'Email обов\'язковий' })} />
                                 {errors.email && (
                                     <Text color='red.500' fontSize={'sm'}>
                                         {errors.email.message}
@@ -61,8 +74,8 @@ export default function Login() {
                                 )}
                             </FormControl>
                             <FormControl id="password">
-                                <FormLabel>Password</FormLabel>
-                                <Input type="password" {...register('password', { required: 'Password is requred' })} />
+                                <FormLabel>Пароль</FormLabel>
+                                <Input type="password" {...register('password', { required: 'Пароль обов\'язковий' })} />
                                 {errors.password && (
                                     <Text color='red.500' fontSize={'sm'}>
                                         {errors.password.message}
@@ -74,17 +87,21 @@ export default function Login() {
                                     direction={{ base: 'column', sm: 'row' }}
                                     align={'start'}
                                     justify={'space-between'}>
-                                    <Checkbox {...register('remember')}>Remember me</Checkbox>
+                                    <Checkbox {...register('remember')}>Запам'ятати мене</Checkbox>
                                 </Stack>
-                                <Button type='submit' colorScheme={'blue'} variant={'solid'}>
-                                    Login
+                                <Button 
+                                    type='submit' 
+                                    colorScheme={'blue'} 
+                                    variant={'solid'}
+                                    isLoading={isSubmitting}
+                                >
+                                    Увійти
                                 </Button>
                                 <Link onClick={() => navigate('/registration')}>
                                     <Text>
-                                        Don't have account yet? Create it!
+                                        Немає облікового запису? Зареєструватися!
                                     </Text>
                                 </Link>
-
                             </Stack>
                         </Stack>
                     </Container>

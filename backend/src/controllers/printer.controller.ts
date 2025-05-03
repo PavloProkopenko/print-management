@@ -1,119 +1,192 @@
 import { Request, Response } from 'express'
 import prisma from '../lib/prisma'
 import { io } from '../index'
+import multer from 'multer'
+import path from 'path'
+import { AuthRequest } from '../middlewares/user.middleware'
+
+// Налаштування multer для збереження файлів
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '../uploads'))
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, uniqueSuffix + path.extname(file.originalname))
+  }
+})
+
+export const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Непідтримуваний тип файлу'))
+    }
+  }
+})
 
 // 1. Надіслати завдання на друк
-export const createPrintJob = async (req: Request, res: Response) => {
-    const { userId, printerId, document, pages } = req.body;
-
+export const createPrintJob = async (req: AuthRequest, res: Response) => {
     try {
-        const printer = await prisma.printer.findUnique({ 
-            where: { id: printerId } 
-        });
+        const { printerId, pages } = req.body
+        const file = req.file
+
+        if (!file) {
+            return res.status(400).json({ error: 'Файл не був завантажений' })
+        }
+
+        const userId = req.user?.id
+        if (!userId) {
+            return res.status(401).json({ error: 'Не авторизовано' })
+        }
+
+        // Перевіряємо чи принтер доступний
+        const printer = await prisma.printer.findUnique({
+            where: { id: parseInt(printerId) }
+        })
 
         if (!printer) {
-            return res.status(404).json({ message: 'Printer not found' });
+            return res.status(404).json({ error: 'Принтер не знайдено' })
         }
 
         if (printer.isBusy) {
-            return res.status(400).json({ message: 'Printer is busy' });
+            return res.status(400).json({ error: 'Принтер зайнятий' })
         }
 
-        // Позначаємо принтер як зайнятий
-        await prisma.printer.update({
-            where: { id: printerId },
-            data: { isBusy: true },
-        });
-
-        // Відправляємо оновлення статусу через Socket.IO
-        io.emit('printer_status_changed', {
-            printerId,
-            isBusy: true,
-            status: 'printing',
-            job: { document, pages }
-        });
-
-        const job = await prisma.printJob.create({
+        // Створюємо завдання на друк
+        const printJob = await prisma.printJob.create({
             data: {
                 userId,
-                printerId,
-                document,
-                pages,
-            },
-        });
+                printerId: parseInt(printerId),
+                document: file.filename,
+                fileName: file.originalname,
+                fileSize: file.size,
+                fileType: file.mimetype,
+                pages: parseInt(pages)
+            }
+        })
 
-        return res.status(201).json(job);
+        // Оновлюємо статус принтера
+        await prisma.printer.update({
+            where: { id: parseInt(printerId) },
+            data: { isBusy: true }
+        })
+
+        // Оновлюємо статистику користувача
+        await prisma.userStats.upsert({
+            where: { userId },
+            update: {
+                totalDocs: { increment: 1 },
+                totalPages: { increment: parseInt(pages) },
+                lastPrintedAt: new Date()
+            },
+            create: {
+                userId,
+                totalDocs: 1,
+                totalPages: parseInt(pages),
+                lastPrintedAt: new Date()
+            }
+        })
+
+        // Відправляємо подію про зміну статусу принтера
+        io.emit('printer_status_changed', {
+            printerId: parseInt(printerId),
+            isBusy: true
+        })
+
+        // Встановлюємо таймер для завершення друку
+        const printTime = parseInt(pages) * 1000; // 1 секунда на сторінку
+        setTimeout(async () => {
+            await prisma.printer.update({
+                where: { id: parseInt(printerId) },
+                data: { isBusy: false }
+            })
+
+            io.emit('printer_status_changed', {
+                printerId: parseInt(printerId),
+                isBusy: false
+            })
+        }, printTime)
+
+        res.status(201).json(printJob)
     } catch (error) {
-        console.error('Create print job error:', error);
-        res.status(500).json({ 
-            message: 'Server error', 
-            error: error instanceof Error ? error.message : String(error)
-        });
+        console.error('Помилка при створенні завдання на друк:', error)
+        res.status(500).json({ error: 'Помилка сервера' })
     }
-};
+}
 
 // 2. Отримати список всіх принтерів
 export const getPrinters = async (req: Request, res: Response) => {
     try {
-        const printers = await prisma.printer.findMany();
-        res.json(printers);
+        const printers = await prisma.printer.findMany()
+        res.json(printers)
     } catch (error) {
-        console.error('Get printers error:', error);
-        res.status(500).json({ 
-            message: 'Server error', 
-            error: error instanceof Error ? error.message : String(error)
-        });
+        console.error('Помилка при отриманні списку принтерів:', error)
+        res.status(500).json({ error: 'Помилка сервера' })
     }
-};
+}
 
 // 3. Завершити завдання (звільнити принтер)
 export const completePrintJob = async (req: Request, res: Response) => {
-    const { printerId } = req.body;
-
     try {
+        const { printerId } = req.body // Changed from req.params to req.body
+
+        if (!printerId) {
+            return res.status(400).json({ error: 'Не вказано ID принтера' })
+        }
+
+        // Оновлюємо статус принтера
         const printer = await prisma.printer.update({
-            where: { id: printerId },
-            data: { isBusy: false },
-        });
+            where: { id: parseInt(printerId.toString()) },
+            data: { isBusy: false }
+        })
 
-        // Відправляємо оновлення статусу через Socket.IO
+        // Відправляємо подію про зміну статусу принтера
         io.emit('printer_status_changed', {
-            printerId,
-            isBusy: false,
-            status: 'idle'
-        });
+            printerId: parseInt(printerId.toString()),
+            isBusy: false
+        })
 
-        return res.json(printer);
+        res.json(printer)
     } catch (error) {
-        console.error('Complete print job error:', error);
-        res.status(500).json({ 
-            message: 'Server error', 
-            error: error instanceof Error ? error.message : String(error)
-        });
+        console.error('Помилка при завершенні завдання на друк:', error)
+        res.status(500).json({ error: 'Помилка сервера' })
     }
-};
+}
 
 // 4. Отримати статистику користувача
 export const getUserStats = async (req: Request, res: Response) => {
-    const userId = parseInt(req.params.userId);
-
     try {
-        const jobs = await prisma.printJob.findMany({
-            where: { userId },
-        });
+        const userId = parseInt(req.params.userId)
+        
+        if (isNaN(userId)) {
+            return res.status(400).json({ error: 'Невірний формат ID користувача' })
+        }
 
-        const totalDocs = jobs.length;
-        const totalPages = jobs.reduce((sum, job) => sum + job.pages, 0);
+        const stats = await prisma.userStats.findUnique({
+            where: { userId }
+        })
 
-        return res.json({ totalDocs, totalPages });
+        if (!stats) {
+            return res.json({
+                totalDocs: 0,
+                totalPages: 0,
+                lastPrintedAt: null
+            })
+        }
+
+        res.json(stats)
     } catch (error) {
-        console.error('Get user stats error:', error);
-        res.status(500).json({ 
-            message: 'Server error', 
-            error: error instanceof Error ? error.message : String(error)
-        });
+        console.error('Помилка при отриманні статистики користувача:', error)
+        res.status(500).json({ error: 'Помилка сервера' })
     }
-};
+}
 
 // 5. Отримати загальну статистику по всіх користувачах (для адміна)
 export const getAdminStats = async (req: Request, res: Response) => {

@@ -103,7 +103,8 @@ export const getMe = async (req: AuthRequest, res: Response) => {
             select: {
                 id: true,
                 email: true,
-                role: true
+                role: true,
+                access: true
             }
         });
 

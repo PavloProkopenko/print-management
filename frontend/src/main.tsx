@@ -8,8 +8,11 @@ import Dashboard from '@/pages/Dashboard'
 import PrivateRoute from './routes/PrivateRoute'
 import { AuthProvider } from './context/AuthContext'
 import Registration from './pages/Registration'
-import { RoutePath } from './resources/enums'
-import AdminDashboard from './pages/Admin/AdminDashboard'
+import { AdminRoutePath, RoutePath } from './resources/enums'
+import AdminDashboard from './pages/AdminDashboard'
+import AdminUsers from './pages/AdminUsers'
+import Printers from './pages/Printers'
+import Settings from './pages/Settings'
 
 const router = createBrowserRouter([
   {
@@ -29,8 +32,36 @@ const router = createBrowserRouter([
     element: <Registration />
   },
   {
-    path: RoutePath.AdminDashboard,
-    element: <AdminDashboard />
+    path: AdminRoutePath.Dashboard,
+    element: (
+      <PrivateRoute>
+        <AdminDashboard />
+      </PrivateRoute>
+    )
+  },
+  {
+    path: AdminRoutePath.Users,
+    element: (
+      <PrivateRoute>
+        <AdminUsers />
+      </PrivateRoute>
+    )
+  },
+  {
+    path: RoutePath.Printers,
+    element: (
+      <PrivateRoute>
+        <Printers />
+      </PrivateRoute>
+    )
+  },
+  {
+    path: RoutePath.Settings,
+    element: (
+      <PrivateRoute>
+        <Settings />
+      </PrivateRoute>
+    )
   }
 ])
 
