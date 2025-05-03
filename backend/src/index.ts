@@ -1,11 +1,23 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import router from './routes/user.routes';
+import userRouter from './routes/user.routes';
+import printerRouter from './routes/printer.routes';
 
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
 const PORT = process.env.PORT || 8080;
 
 // Додаємо логування для відстеження запитів
@@ -33,14 +45,27 @@ app.use(cors({
 app.use(express.json());
 
 // Роути
-app.use('/api', router);
+app.use('/api/auth', userRouter);
+app.use('/api/printers', printerRouter);
 
 // Тестовий роут
 app.get('/test', (req, res) => {
   res.json({ message: 'Server is running' });
 });
 
+// Socket.IO підключення
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
 // Запуск сервера
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+// Експортуємо io для використання в інших файлах
+export { io };

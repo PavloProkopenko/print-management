@@ -7,9 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Users {
-  id       Int    @id(map: "User_pkey") @default(autoincrement())
-  email    String @unique(map: "User_email_key")
-  password String
-  role     String @default("user")
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  role      Role      @default(USER)
+  printJobs PrintJob[]
+  access    Boolean   @default(true) // Доступ до друку
+}
+
+model Printer {
+  id        Int       @id @default(autoincrement())
+  name      String
+  isBusy    Boolean   @default(false)
+  printJobs PrintJob[]
+}
+
+model PrintJob {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  printer    Printer  @relation(fields: [printerId], references: [id])
+  printerId  Int
+  document   String
+  pages      Int
+  createdAt  DateTime @default(now())
+}
+
+enum Role {
+  USER
+  ADMIN
 }
