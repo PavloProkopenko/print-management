@@ -119,4 +119,70 @@ export const getMe = async (req: AuthRequest, res: Response) => {
             error: error instanceof Error ? error.message : String(error) 
         });
     }
+};
+
+export const updateUserAccess = async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const { access } = req.body;
+
+    try {
+        const user = await prisma.user.update({
+            where: { id: parseInt(userId) },
+            data: { access },
+            select: {
+                id: true,
+                email: true,
+                role: true,
+                access: true
+            }
+        });
+
+        res.json(user);
+    } catch (error) {
+        console.error('Update user access error:', error);
+        res.status(500).json({ 
+            message: 'Server error', 
+            error: error instanceof Error ? error.message : String(error)
+        });
+    }
+};
+
+export const getAdminStats = async (req: Request, res: Response) => {
+    try {
+        const stats = await prisma.printJob.groupBy({
+            by: ['userId'],
+            _count: { _all: true },
+            _sum: { pages: true },
+        });
+
+        const detailed = await Promise.all(
+            stats.map(async (entry) => {
+                const user = await prisma.user.findUnique({ 
+                    where: { id: entry.userId },
+                    select: {
+                        id: true,
+                        email: true,
+                        role: true,
+                        access: true
+                    }
+                });
+                return {
+                    userId: entry.userId,
+                    email: user?.email,
+                    role: user?.role,
+                    access: user?.access,
+                    totalDocs: entry._count?._all || 0,
+                    totalPages: entry._sum?.pages || 0,
+                };
+            })
+        );
+
+        return res.json(detailed);
+    } catch (error) {
+        console.error('Get admin stats error:', error);
+        res.status(500).json({ 
+            message: 'Server error', 
+            error: error instanceof Error ? error.message : String(error)
+        });
+    }
 }; 

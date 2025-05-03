@@ -35,3 +35,20 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
+export const isAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ message: 'Access denied. Admin role required' });
+        }
+
+        next();
+    } catch (error) {
+        console.error('Admin check error:', error);
+        return res.status(500).json({ message: 'Server error' });
+    }
+};

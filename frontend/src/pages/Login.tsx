@@ -15,8 +15,8 @@ import {
 } from '@chakra-ui/react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom';
-import API from '@/api/axios';
 import { RoutePath } from '@/resources/enums';
+import { loginRequest } from '@/api/auth';
 
 export default function Login() {
     const {
@@ -28,13 +28,17 @@ export default function Login() {
 
     const onSubmit = async (data: LoginFormInput) => {
         try {
-            const res = await API.post(RoutePath.Login, data);
-            const { token, user } = res.data;
+            const { token, user } = await loginRequest(data.email, data.password);
 
             localStorage.setItem('token', token)
             console.log('User logged in:', user)
 
-            navigate(RoutePath.Dashboard)
+            if (user.role === 'ADMIN') {
+                navigate(RoutePath.AdminDashboard)
+            } else {
+                navigate(RoutePath.Dashboard)
+            }
+
         } catch (error: any) {
             console.log(error);
             alert(error.response?.data?.message || "Login failed")

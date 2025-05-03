@@ -16,6 +16,7 @@ import {
 } from '@chakra-ui/react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom';
+import { registerRequest } from '@/api/auth';
 
 export default function Registration() {
     const {
@@ -27,8 +28,7 @@ export default function Registration() {
 
     const onSubmit = async (data: LoginFormInput) => {
         try {
-            const res = await API.post(RoutePath.Registration, data);
-            const { token, user } = res.data;
+            const { token, user } = await registerRequest(data.email, data.password);
 
             localStorage.setItem('token', token)
             console.log('User registered:', user)

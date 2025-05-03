@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const token = localStorage.getItem('token')
       if (token) {
         try {
-          const response = await API.get('/me')
+          const response = await API.get('/auth/me')
           setUser(response.data.user)
         } catch (error) {
           console.error('Auth check failed:', error)
