@@ -3,12 +3,19 @@ import prisma from '../lib/prisma'
 import { io } from '../index'
 import multer from 'multer'
 import path from 'path'
+import fs from 'fs'
 import { AuthRequest } from '../middlewares/user.middleware'
+
+// Створюємо директорію uploads, якщо вона не існує
+const uploadsDir = path.join(process.cwd(), 'src', 'uploads')
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true })
+}
 
 // Налаштування multer для збереження файлів
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../uploads'))
+    cb(null, uploadsDir)
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
@@ -36,6 +43,10 @@ export const createPrintJob = async (req: AuthRequest, res: Response) => {
     try {
         const { printerId, pages } = req.body
         const file = req.file
+
+        console.log('Received file:', file)
+        console.log('Uploads directory:', uploadsDir)
+        console.log('File exists:', fs.existsSync(path.join(uploadsDir, file?.filename || '')))
 
         if (!file) {
             return res.status(400).json({ error: 'Файл не був завантажений' })
@@ -65,9 +76,9 @@ export const createPrintJob = async (req: AuthRequest, res: Response) => {
                 userId,
                 printerId: parseInt(printerId),
                 document: file.filename,
-                fileName: file.originalname,
-                fileSize: file.size,
-                fileType: file.mimetype,
+                fileName: file.originalname || null,
+                fileSize: file.size || null,
+                fileType: file.mimetype || null,
                 pages: parseInt(pages)
             }
         })

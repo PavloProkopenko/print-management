@@ -22,7 +22,7 @@ const io = new Server(httpServer, {
 const PORT = process.env.PORT || 8080;
 
 // Створюємо директорію для завантажених файлів
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.join(process.cwd(), 'src', 'uploads');
 if (!require('fs').existsSync(uploadsDir)) {
   require('fs').mkdirSync(uploadsDir, { recursive: true });
 }
@@ -31,6 +31,8 @@ if (!require('fs').existsSync(uploadsDir)) {
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('Files:', req.files);
   next();
 });
 
